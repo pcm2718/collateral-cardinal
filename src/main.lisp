@@ -3,7 +3,7 @@
 
 ;; Create a circular queue, binding it to queue.
 (defmacro circular-queue-create (queue)
-  `())
+  `(setf ,queue ()))
 
 ;; Get the item at the front of the queue.
 (defmacro circular-queue-front (queue)
@@ -38,7 +38,7 @@
 
 ;; Get the dimension of the board.
 (defmacro board-dim (board)
-  `(array-dimension (board-board ,board)))
+  `(array-dimension (board-board ,board) 0))
 
 
 
@@ -117,7 +117,7 @@
 
 
 
-;; Player Structure and Operations, including Move Selectors (things which understand colors)
+;; Player Structure and Operations, including Move Selectors (things which understand colors and players)
 ;; ===============================
 
 ;; This structure associates a piece color with a move selection algorithms.
@@ -176,11 +176,15 @@
 
 ;; Macro to simplify constructing the state.
 (defmacro build-state-list (proplist)
-  `(cons build-state ,proplist))
+  `(eval (append '(build-state) ,proplist)))
 
 ;; Get the dimension of the state's board.
 (defmacro state-dim (state)
   `(board-dim (state-board ,state)))
+
+;; Get the moves that can be made given state.
+;;(defmacro state-moves (state)
+;;  `(board-moves current-player))
 
 
 
@@ -207,16 +211,13 @@
     (
      ;; Bind the board.
      (board (state-board state))
-     
-     ;; Bind the dimension of the board.
-     (dim (board-dim board))
 
      ;; Bind the player queue.
      (players (state-players state))
 
      ;; Find the current player.
      (current-player (circular-queue-front players)))
-
+    
     (if
       ;; Test to see if only one player remains.
       (eq (cdr players) '())
@@ -224,30 +225,20 @@
       ;; If only the current player remains, return that player.
       current-player
 
-      ;; Otherwise, activate the recursive step.
-      (let*
-        (
-         ;; Bind the current player's move selector.
-         (current-player-select-move (struct-player-select-move current-player))
+      ;; Otherwise, activate the recursive step using the next state of the game as the argument.
+      (play-game
 
-         ;; Find the current player's options for movement.
-         (current-player-moves (board-moves board current-player))
+        ;; Compute the next state of the game.
+        (build-state-list
+          (if
+            ;; Test for the existence of possible moves.
+            (eq (board-moves-player board current-player) '())
 
-         ;; Find the new state of the game.
-         (new-state 
-           (build-state-list
-             (if
-               ;; Test for the existence of possible moves.
-               (eq current-player-moves '())
+            ;; If the player has no possible moves, the board remains unchanged and the current player is removed from the queue.
+            (list board (circular-queue-pop players))
 
-               ;; If the player has no possible moves, the board remains unchanged and the current player is removed from the queue.
-               ();;(list board (circular-queue-remove-front players))
-
-               ;; Otherwise, the player's chosen move is applied to the board while the player queue is advanced.
-               (list (state-apply-move state (current-player-select-move state current-player)) (circular-queue-advance players))))))
-
-        ;; Advance the game by making a recursive call.
-        (play-game new-state)))))
+            ;; Otherwise, the player's chosen move is applied to the board while the player queue is advanced.
+            (list (board-apply-move state (apply (player-select-move current-player) state current-player)) (circular-queue-advance players))))))))
 
 
 
@@ -255,7 +246,6 @@
 
 ;; Top Level
 ;; ===============================
-;; Might excise this to a sort of script later.
 
 ;; Create the board.
 (setf myboard (make-board))
@@ -268,11 +258,13 @@
 ;;(circular-queue-push players (struct-player :color 'black :get-move 'select-move-mcts-serial))
 
 ;; Add the read and black players, both random.
-(setf myplayers (circular-queue-push myplayers (build-player red select-move-rand)))
-(setf myplayers (circular-queue-push myplayers (build-player black select-move-rand)))
+(setf myplayers (circular-queue-push myplayers (build-player red #'select-move-rand)))
+(setf myplayers (circular-queue-push myplayers (build-player black #'select-move-rand)))
 
 ;; Build the state.
-(setf mystate (build-state myboard myplayers))
+;; Fix this to work *properly* with symbols later.
+;;(setf mystate (build-state myboard myplayers))
+(setf mystate (make-state :board myboard :players myplayers))
 
 ;; ROUND 1, FIGHT!
 (print (play-game mystate))
