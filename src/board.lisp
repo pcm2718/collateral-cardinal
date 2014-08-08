@@ -18,20 +18,6 @@
 ;; board from the implementation.
 (defstruct board board)
 
-;; Pretty-print the board in a way that makes sense to a human.
-;; TODO Modify this to handle boards of any size, with improved
-;; efficency.
-(defun board-pprint (board)
-  (let
-      ((dim (board-dim board)))
-    (dotimes (x 8 nil)
-      (dotimes (y 8 nil)
-	(prin1 (board-spot-get board (list x y))))
-      (prin1 ""))))
-
-;; TODO Implement this later.
-;;(defun board-pprint-color (board))
-
 ;; Build a square board of dimension dim.
 (defmacro build-board (dim)
   `(make-board :board (make-array '(,dim ,dim) :initial-element nil)))
@@ -81,16 +67,57 @@
   (make-board :board (copy-array (board-board board))))
 
 ;; Set the piece type on a copy of board at spot and return the copy.
-(defun board-spot-set (board spot newpiece)
-  (let
-      ((deep-copy (board-deep-copy board)))
-    (board-spot-setf deep-copy spot newpiece)
-    deep-copy))
+;; (defun board-spot-set (board spot newpiece)
+;;   (let
+;;       ((deep-copy (board-deep-copy board)))
+;;     (board-spot-setf deep-copy spot newpiece)
+;;     deep-copy))
 
-;; Swap the symbols at the two board locations and return the copy.
-(defun board-spot-swap (board one two)
-  (board-spot-setf (board-spot-set board
-				   one
-				   (board-spot-get board two))
+;; This could be bugged due to the evaluation order of the
+;; swap. Switching the order of the arguments could be a solution.
+(defun board-spot-swapf (board one two)
+  (board-spot-setf (board-spot-setf board
+				    one
+				    (board-spot-get board two))
 		   two
 		   (board-spot-get board one)))
+
+;; Swap the symbols at the two board locations and return the copy.
+;; (defun board-spot-swap (board one two)
+;;   (let
+;;       ((deep-copy (board-deep-copy board)))
+;;     (board-spot-swapf deep-copy one two)
+;;     deep-copy))
+
+;; Pretty-print the board in a way that makes sense to a human.
+;; TODO Modify this to handle boards of any size, with improved
+;; efficency (i.e. no case statement and do instead of dotimes).
+(defun board-pprint (board)
+  (let
+      ((dim (board-dim board)))
+    ;; Print rows and row headings.
+    (dotimes (y dim nil)
+      ;; Print row heading.
+      (format t " ~D  " (- 7 y))
+      ;; Print row.
+      (dotimes (x dim nil)
+	;; Print square.
+	(format t " ~C " (case (board-spot-get board (list x (- 7 y)))
+			   (rm #\r)
+			   (rk #\R)
+			   (bm #\b)
+			   (bk #\B)
+			   (nil #\X))))
+      ;; Newline for next row.
+      (write-char #\linefeed))
+    ;; Newline before column headings.
+    (write-char #\linefeed)
+    ;; Print blank heading.
+    (princ "    ")
+    ;; Print headings.
+    (dotimes (x dim nil)
+      (format t " ~D " x))))
+      
+
+;; TODO Implement this later.
+;;(defun board-pprint-color (board))

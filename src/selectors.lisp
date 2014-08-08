@@ -52,9 +52,27 @@
 
 ;; TODO Add a selector for heuristic shortcut MCTS.
 
+(defmacro prompt-until-valid (prompt validator)
+  `(loop
+      ;; Prompt for input.
+      ,prompt
+      ;; I/O is buffered, meaning that I need to flush the output so the
+      ;; read will occur after the prompt has been printed.
+      (finish-output)
+      ;; Read the move.
+      (let ((input (read)))
+	(when (,validator input) (return input)))))
+
 ;; Pretty-print the state of the game to the REPL for a human user,
 ;; then prompt him for a move.
 (defun select-move-human (state)
-  (progn (board-pprint (state-board state))
-	 (prin1 (car (state-players state)))
-	 (read)))
+  ;; Pretty-print the state.
+  (write-char #\newline)
+  (state-pprint state)
+  (write-char #\newline)
+
+  (prompt-until-valid (format t "Your move, ~A? "
+			      (player-id (car (state-players state))))
+		      (lambda (move)
+			(or (eq move nil)
+			    (move-board-validate move (state-board state))))))

@@ -3,11 +3,11 @@
 
 ;; This structure associates a piece color with a move selection
 ;; algorithms. The lack of default values is intentional.
-(defstruct player man king move-selector)
+(defstruct player id man king move-selector)
 
 ;; Macro to simplify constructing players.
-(defmacro build-player (man king move-selector)
-  `(make-player :man ',man :king ',king :move-selector ',move-selector))
+(defmacro build-player (id man king move-selector)
+  `(make-player :id ',id :man ',man :king ',king :move-selector ',move-selector))
 
 
 
@@ -31,12 +31,26 @@
 ;;(defmacro state-dim (state)
 ;;  `(board-dim (state-board ,state)))
 
+;; Pretty-printer for the state of a game, primarily intended for
+;; debugging inspection and user interaction.
+(defun state-pprint (state)
+  (board-pprint (state-board state)) (write-char #\newline)
+  (pprint (state-players state)) (write-char #\newline) nil)
+
+
+
+;; Game Loop (this is it, the big one)
+;; ===============================
+
+;; The circular queue macros are prerequisite to the game loop.
+;;(load "circular-queue")
+
 ;; Iterate state by appling moves from the current player until only
 ;; one player remains.
 (defun state-play-game (state)
   ;;(print state)
   ;;(sleep 3)
-  (let
+  (let*
       (
        ;; Bind the board.
        (board (state-board state))
@@ -58,23 +72,27 @@
      ;; Otherwise, activate the recursive step using the next state
      ;; of the game as the argument.
      (state-play-game
-      (build-state-list
-       (let
-	   ;; Get the player's chosen move, based on the state.
-	   ((current-player-move (funcall (player-select-move current-player)
-					  state)))
-	 (if
-	  ;; Test to determine whether the player has chosen a move.
-	  (eq current-player-move '())
-	  
-	  ;; If the player is not left with a legal move, or if he
-	  ;; has no pieces, the board remains unchanged and the
-	  ;; current player is removed from the queue.
-	  (list board
-		(circular-queue-pop players))
+      (let
+	  ;; Get the player's chosen move, based on the state.
+	  ((current-player-move (funcall (player-move-selector current-player)
+					 state)))
 
-	  ;; Otherwise, the player's chosen move is applied to the
-	  ;; board while the player queue is advanced.
+	;; TODO Add a form to print something like "<player-name> has made the move: <move>".
 
-	  (list (move-board-apply current-player-move board)
-		(circular-queue-advance players)))))))))
+	;; TODO Add forms to print status information.
+
+	(if
+	 ;; Test to determine whether the player has chosen a move.
+	 (eq current-player-move nil)
+	 
+	 ;; If the player is not left with a legal move, or if he
+	 ;; has no pieces, the board remains unchanged and the
+	 ;; current player is removed from the queue.
+	 (make-state :board board
+		     :players (circular-queue-pop players))
+
+	 ;; Otherwise, the player's chosen move is applied to the
+	 ;; board while the player queue is advanced.
+
+	 (make-state :board (move-board-applyf current-player-move board)
+		     :players (circular-queue-advance players))))))))
