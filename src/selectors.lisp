@@ -65,6 +65,9 @@
 
 ;; Pretty-print the state of the game to the REPL for a human user,
 ;; then prompt him for a move.
+;; TODO The call to move-board-apply results in redundant computation,
+;; perhaps the return of the resultant state should be optional?
+;; TODO Add code to verify the syntax of the move list.
 (defun select-move-human (state)
   ;; Pretty-print the state.
   (write-char #\newline)
@@ -75,4 +78,5 @@
 			      (player-id (car (state-players state))))
 		      (lambda (move)
 			(or (eq move nil)
-			    (move-board-validate move (state-board state))))))
+			    (eq move 'draw)
+			    (move-board-apply move (state-board state))))))

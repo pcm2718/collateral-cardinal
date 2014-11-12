@@ -3,11 +3,19 @@
 
 ;; This structure associates a piece color with a move selection
 ;; algorithms. The lack of default values is intentional.
+;; TODO Add a saftey indicator to tell the game loop if moves should
+;; be verified? This would improve the efficiency of safe mode.
 (defstruct player id man king move-selector)
 
 ;; Macro to simplify constructing players.
 (defmacro build-player (id man king move-selector)
-  `(make-player :id ',id :man ',man :king ',king :move-selector ',move-selector))
+  `(make-player :id ',id :man ',man :king ',king :selector ',move-selector))
+
+(defmacro player-saftey (player)
+  `(make-player :id ,(player-id player)
+		:man ,(player-man player)
+		:king ,(player-king player)
+		:selector `(
 
 
 
@@ -47,6 +55,8 @@
 
 ;; Iterate state by appling moves from the current player until only
 ;; one player remains.
+;; TODO Implement a proper draw system, where the opposing player must
+;; agree to the draw.
 (defun state-play-game (state)
   ;;(print state)
   ;;(sleep 3)
@@ -77,13 +87,14 @@
 	  ((current-player-move (funcall (player-move-selector current-player)
 					 state)))
 
-	;; TODO Add a form to print something like "<player-name> has made the move: <move>".
+	;; TODO Add a form to print something like "<player-name> has
+	;; made the move: <move>".
 
 	;; TODO Add forms to print status information.
 
 	(if
 	 ;; Test to determine whether the player has chosen a move.
-	 (eq current-player-move nil)
+	 (or (eq current-player-move nil) (eq current-player-move 'draw))
 	 
 	 ;; If the player is not left with a legal move, or if he
 	 ;; has no pieces, the board remains unchanged and the
@@ -94,5 +105,8 @@
 	 ;; Otherwise, the player's chosen move is applied to the
 	 ;; board while the player queue is advanced.
 
-	 (make-state :board (move-board-applyf current-player-move board)
+	 (make-state :board (move-board-apply current-player-move board)
 		     :players (circular-queue-advance players))))))))
+
+;; (defmacro state-play-game-safe (state)
+;;   `(state-play-game (make-state :board (state-board state) :players

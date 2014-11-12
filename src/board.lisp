@@ -51,7 +51,8 @@
 (defun board-spot-setf (board spot newpiece)
   (if
    (board-spot-check board spot)
-   (setf (%board-spot-ref board spot) newpiece)
+   (progn (setf (%board-spot-ref board spot) newpiece)
+	  board)
    '()))
 
 ;; Return a shallow copy of an array. Code courtesy of
@@ -76,11 +77,13 @@
 ;; This could be bugged due to the evaluation order of the
 ;; swap. Switching the order of the arguments could be a solution.
 (defun board-spot-swapf (board one two)
-  (board-spot-setf (board-spot-setf board
-				    one
-				    (board-spot-get board two))
-		   two
-		   (board-spot-get board one)))
+  (let
+      ((piece-one (board-spot-get board one)))
+    (board-spot-setf (board-spot-setf board
+				      one
+				      (board-spot-get board two))
+		     two
+		     piece-one)))
 
 ;; Swap the symbols at the two board locations and return the copy.
 ;; (defun board-spot-swap (board one two)
@@ -102,12 +105,14 @@
       ;; Print row.
       (dotimes (x dim nil)
 	;; Print square.
+	;; TODO Figure out why nil needs to be quoted.
 	(format t " ~C " (case (board-spot-get board (list x (- 7 y)))
 			   (rm #\r)
 			   (rk #\R)
 			   (bm #\b)
 			   (bk #\B)
-			   (nil #\X))))
+			   ('nil #\X)
+			   (otherwise #\?))))
       ;; Newline for next row.
       (write-char #\linefeed))
     ;; Newline before column headings.

@@ -63,4 +63,7 @@
 ;;      only be done at the top.
 
 ;; ROUND 1, FIGHT!
-(state-play-game mystate)
+(let
+    ((winner (state-play-game mystate)))
+  (format t "Player ~A wins!~%" (player-id winner))
+  winner)

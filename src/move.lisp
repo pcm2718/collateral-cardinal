@@ -26,6 +26,8 @@
 	  (and (eq piece 'rm) (plusp (- (second dest) (second orig))))
 	  (and (eq piece 'bk) (minusp (- (second dest) (second orig))))))
 
+;; Is there a way to rewrite this as destructive while improving
+;; performance?
 ;; TODO Lots of redundant computation happens here.
 (defun jump-board-validate (orig dest board)
   (let ((piece (board-spot-get board orig)))
@@ -56,7 +58,8 @@
 	  ((and (= 2
 		   (abs (- (first dest) (first orig)))
 		   (abs (- (second dest) (second orig))))
-		(enemiesp piece (board-spot-get (list (avg (first dest)
+		(enemiesp piece (board-spot-get board
+						(list (avg (first dest)
 							   (first orig))
 						      (avg (second dest)
 							   (second orig))))))
@@ -69,29 +72,16 @@
 	;; If the test is false we know the jump is invalid, so return nil.
 	nil)))
 
-;; TODO Enable jumps which result in captures.
+;; TODO Reduce redundant and unneccesary computation. Annotation?
 (defun jump-board-applyf (orig dest board)
+  (if (= 2 (abs (- (first dest) (first orig))))
+      (board-spot-setf board
+		       (list (avg (first dest) (first orig))
+			     (avg (second dest) (second orig)))
+		       nil))
   (board-spot-swapf board orig dest))
 
-;; TODO Enable jumps which result in captures.
-(defun jump-board-apply (orig dest board)
-  (board-spot-swap board orig dest))
-
 ;; TODO Maybe jump-board-validate also functions as an applicator?
-;; TODO Reimplement with cond?
-;; (defun move-board-validate-r (move board)
-;;   ;; Test to determine whether the last jump has been tested.
-;;   (if (eq (cdr move) ())
-;;       ;; If so, then return the result board.
-;;       board
-;;       ;; Else, validate the current jump and recursively validate the
-;;       ;; remaining jumps.
-;;       (if (jump-board-validate (car move) (cadr move) board)
-;; 	  (move-board-validate-r (cdr move)
-;; 				 (jump-board-apply (car move) (cadr move)
-;; 						   board))
-;; 	  nil)))
-
 ;; TODO Write a function to efficiently determine the relation between
 ;; a number and the length of a list.
 ;; TODO Could validate also splice extra information into the move to
@@ -101,38 +91,16 @@
 ;; applicator to read either the modified or unmodified move to retain
 ;; the functionality I want.
 ;; TODO Could move-board-validate be merged with move-board-validate-r?
-
 ;; TODO Forget annotation, this function computes the result board as
 ;; a consequence of verification. This function perhaps should return
 ;; nil if invalid, else the result board. the move-board-apply
 ;; function could be reserved for a function which does not do
 ;; validation during application.
-;; (defun move-board-validate (move board)
-;;   ;; Test to determine whether move contains at least one jump.
-;;   (if (eq (cdr move) ())
-;;       ;; If not, then move isn't really a move, so return nil.
-;;       nil
-;;       ;; Else, copy the board and use it to validate the move.
-;;       (move-board-validate-r move (board-deep-copy board)))
-
-;; (defun %move-board-apply (move board)
-;;   )
-
-;; Apply the supplied move to the given board. Unsafe, destructive.
-;; (defun %move-board-apply (move board)
-;;   ;; Test to determine whether the last jump has been tested.
-;;   ;; Maybe I could replace this with an unless?
-;;   (if (eq (cdr move) ())
-;;       ;; If so, return true.
-;;       t
-;;       ;; Else, apply the current jump and recurisvely validate the
-;;       ;; remaining jumps.
-;;       (and (jump-board-applyf (car move) (cadr move) board)
-;; 	   (%move-board-apply (cdr move board)))))
 
 ;; Try to apply the first jump in move to board. If successful
 ;; recursively try to apply the remainder of the jumps to board and
 ;; return the board, else return nil.
+;; TODO Reimplement with cond?
 (defun move-board-apply-r (move board)
   ;; Test to determine whether the last jump has been tested.
   (if (eq (cdr move) ())
@@ -141,10 +109,8 @@
       ;; Else, validate the current jump and recursively validate the
       ;; remaining jumps. From and to of move are accessed twice.
       (if (jump-board-validate (car move) (cadr move) board)
-	  (move-board-apply-r (cdr move)
-			      (jump-board-applyf (car move)
-						 (cadr move)
-						 board))
+	  (progn (jump-board-applyf (car move) (cadr move) board)
+		 (move-board-apply-r (cdr move) board))
 	  nil)))
 
 ;; If possbile apply the supplied move to a copy of board and return
@@ -158,10 +124,3 @@
       ;; Else, copy the board and use the copy to try and apply the
       ;; move.
       (move-board-apply-r move (board-deep-copy board))))
-
-;; Apply the supplied move to a deep copy of the given board and return it.
-(defun move-board-apply (move board)
-  (let
-      ((deep-copy (board-deep-copy board)))
-    (move-board-applyf move deep-copy)
-    deep-copy))
